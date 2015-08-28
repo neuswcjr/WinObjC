@@ -14,24 +14,24 @@
 //
 //******************************************************************************
 
-#ifndef __MACH_TIME_H
-#define __MACH_TIME_H
+#include <assert.h>
+#include "XIBObjectTypes.h"
+#include "NIBWriter.h"
+#include "XIBDocument.h"
 
-struct mach_timebase_info {
-    uint32_t numer, denom;
-};
-
-typedef struct mach_timebase_info *mach_timebase_info_t;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-kern_return_t mach_timebase_info(mach_timebase_info_t tinfo);
-uint64_t mach_absolute_time();
-
-#ifdef __cplusplus
+XIBDocument::XIBDocument(pugi::xml_node node)
+{
+    ScanStoryObjects(node);
 }
-#endif
 
-#endif
+XIBArray *XIBDocument::Objects()
+{
+    //  Find the objects array
+    for (auto curMember : _members) {
+        if ( strcmp(curMember->_obj->_node.name(), "objects") == 0 ) {
+            return (XIBArray *) curMember->_obj;
+        }
+    }
+
+    return NULL;
+}

@@ -14,24 +14,13 @@
 //
 //******************************************************************************
 
-#ifndef __MACH_TIME_H
-#define __MACH_TIME_H
+#ifndef __XIBDOCUMENT_H
+#define __XIBDOCUMENT_H
 
-struct mach_timebase_info {
-    uint32_t numer, denom;
+class XIBDocument : public XIBObject
+{
+public:
+    XIBDocument(pugi::xml_node node);
+    XIBArray *Objects();
 };
-
-typedef struct mach_timebase_info *mach_timebase_info_t;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-kern_return_t mach_timebase_info(mach_timebase_info_t tinfo);
-uint64_t mach_absolute_time();
-
-#ifdef __cplusplus
-}
-#endif
-
 #endif

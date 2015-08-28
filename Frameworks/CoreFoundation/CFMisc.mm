@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #endif
 #include <unistd.h>
+#include <compat/mach/mach_time.h>
 
 using namespace ABI::Windows::Foundation;
 using namespace Microsoft::WRL;
@@ -49,8 +50,6 @@ COREFOUNDATION_EXPORT extern "C" uint32_t arc4random()
         EbrDebugLog("Unable to get random number!\n");
     }
     return randResult;
-
-    return (uint32_t)randResult;
 }
 
 COREFOUNDATION_EXPORT extern "C" int usleep(useconds_t secs)
@@ -87,3 +86,28 @@ CFStringRef CFCopyDescription(CFTypeRef ref)
     return (CFStringRef) @"Desc";
 }
 
+__declspec(dllexport) extern "C" uint64_t mach_absolute_time()
+{
+    static uint32_t start;
+
+    if (start == 0) {
+        start = EbrGetAbsoluteTime();
+    }
+    uint32_t ret = EbrGetAbsoluteTime();
+    ret -= start;
+
+    return ret;
+}
+
+__declspec(dllexport) extern "C" kern_return_t mach_timebase_info(mach_timebase_info_t tinfo) 
+{
+    //  mach_absolute_time uses EbrGetAbsoluteTime->GetTickCount64 which returns
+    //  the absolute time in milliseconds.  mach_timebase_info returns the fraction
+    //  required to repesent it in nanoseconds. 
+    //
+    //  ns = millis*1000000/1
+    tinfo->numer = 1000000;
+    tinfo->denom = 1;
+
+    return 0;
+}
