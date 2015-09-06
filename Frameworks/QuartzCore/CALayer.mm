@@ -294,7 +294,21 @@ public:
 
 static LockingBufferInterface _globallockingBufferInterface;
 
-@implementation CALayer
+CGContextRef CreateLayerContentsBitmapContext32(int width, int height)
+{
+    DisplayTexture *tex = NULL;
+                        
+    if ( [NSThread isMainThread] ) tex = GetCACompositor()->CreateWritableBitmapTexture32(width, height);
+    CGContextRef ret = CGBitmapContextCreate32(width, height, tex, &_globallockingBufferInterface);
+    if ( tex ) _globallockingBufferInterface.ReleaseDisplayTexture(tex);
+
+    return ret;
+}
+
+@implementation CALayer {
+	WXFrameworkElement *_contentsElement;
+}
+
     -(instancetype) init {
         assert(priv == NULL);
         priv = new CAPrivateInfo(self);
@@ -377,8 +391,15 @@ static LockingBufferInterface _globallockingBufferInterface;
     -(void) drawInContext:(CGContextRef)ctx {
     }
 
-    -(void) setContentsElement: (WXFrameworkElement *) element
-    {
+    -(WXFrameworkElement *) contentsElement {
+		return _contentsElement;
+    }
+
+    -(void) setContentsElement: (WXFrameworkElement *) element {
+		[element retain];
+		[_contentsElement release];
+		_contentsElement = element;
+
         if ( priv->_textureOverride ) {
             GetCACompositor()->ReleaseDisplayTexture(priv->_textureOverride);
         }
@@ -417,11 +438,6 @@ static LockingBufferInterface _globallockingBufferInterface;
             int width = (int)(ceilf(priv->bounds.size.width) * priv->contentsScale);
             int height = (int)(ceilf(priv->bounds.size.height) * priv->contentsScale);
 
-            if ( priv->forceOverrideBounds ) {
-                width = ceilf(priv->overrideBounds.size.width) * priv->contentsScale;
-                height = ceilf(priv->overrideBounds.size.height) * priv->contentsScale;
-            }
-
             if ( width <= 0 || height <= 0 ) {
                 return;
             }
@@ -433,11 +449,21 @@ static LockingBufferInterface _globallockingBufferInterface;
             priv->contentsSize.height = (float)height;
 
             // nothing to do?
-            if ( (priv->delegate != nil && 
-                 object_isMethodFromClass(priv->delegate, @selector(drawRect:), "UIView") ) ||
-                 (priv->delegate == nil && object_isMethodFromClass(self, @selector(drawInContext:), "CALayer") ) ) {
+            bool hasDrawingMethod = false;
+            if ( priv->delegate != nil && 
+                 (!object_isMethodFromClass(priv->delegate, @selector(drawRect:), "UIView") || 
+                  !object_isMethodFromClass(priv->delegate, @selector(drawLayer:inContext:), "UIView") ||
+                  [priv->delegate respondsToSelector:@selector(displayLayer:)]
+                 ) ) {
+                 hasDrawingMethod = true;
+            }
+            if ( !object_isMethodFromClass(self, @selector(drawInContext:), "CALayer") ) {
+                hasDrawingMethod = true;
+            }
+            if ( !hasDrawingMethod ) {
                 return;
             }
+
             bool useVector = false;
 
             //  Create the contents 
@@ -468,11 +494,7 @@ static LockingBufferInterface _globallockingBufferInterface;
                         //target = new CGVectorImage(width, height, _ColorARGB);
                     }
                     else {
-                        DisplayTexture *tex = NULL;
-                        
-                        if ( [NSThread isMainThread] ) tex = GetCACompositor()->CreateWritableBitmapTexture32(width, height);
-                        drawContext = CGBitmapContextCreate32(width, height, tex, &_globallockingBufferInterface);
-                        if ( tex ) _globallockingBufferInterface.ReleaseDisplayTexture(tex);
+                        drawContext = CreateLayerContentsBitmapContext32(width, height);
                     }
                     priv->drewOpaque = FALSE;
                 }
@@ -1786,6 +1808,8 @@ static LockingBufferInterface _globallockingBufferInterface;
         while ( priv->firstChild ) {
             [priv->firstChild->self removeFromSuperlayer];
         }
+
+		[_contentsElement release];
 
         delete priv;
         priv = NULL;

@@ -28,7 +28,9 @@ typedef wchar_t WCHAR;
 #include <d3d11.h>
 #include <d3d11_1.h>
 
+#include <COMIncludes.h>
 #include "Windows.ui.xaml.media.dxinterop.h"
+#include <COMIncludes_End.h>
 
 @implementation CAEAGLLayer {
     NSDictionary *_properties;
@@ -56,19 +58,15 @@ typedef wchar_t WCHAR;
 	{
 		_swapChainPanel = [WXCSwapChainPanel create];
 		[super init];
-		[super setContentsElement: _swapChainPanel];
+		self.contentsElement = _swapChainPanel;
 
 		return self;
 	}
 
-	-(void) _setSwapChainNative: (IDXGISwapChain1 *) swapChain
-	{
-		IUnknown *pUnkRaw = (IUnknown *) [_swapChainPanel internalObject];
-		ISwapChainPanelNative *panelNative;
-		pUnkRaw->QueryInterface(__uuidof(panelNative), (void **) &panelNative);
-		panelNative->SetSwapChain(swapChain);
-		panelNative->Release();
-	}
+    -(WXCSwapChainPanel *) swapChainPanel
+    {
+        return _swapChainPanel;
+    }
 
     -(DisplayTexture *) _getDisplayTexture {
         return NULL;
